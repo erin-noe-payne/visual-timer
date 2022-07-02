@@ -1,20 +1,12 @@
-import React, { useState } from "react";
+import React, { ChangeEventHandler, useState } from "react";
 import styled from "@emotion/styled";
 import { Global, css, keyframes } from "@emotion/react";
+import { Clock } from "./Clock";
+import { teal } from "./colors";
 
-const colors = {
-  teal: "rgb(143, 215, 190)",
-  blue: "rgb(11, 88, 152)",
-  green: "rgb(69, 124, 79)",
-  yellow2: "rgb(233, 208, 60)",
-  yellow1: "rgb(249, 212, 64)",
-  orange2: "rgb(252, 155, 47)",
-  orange1: "rgb(246, 108, 50)",
-  red2: "rgb(236, 62, 50)",
-  red1: "rgb(177, 6, 31)",
-};
+// state: time / isCountingDown
 
-const MAX_TIME = 30;
+const MAX_TIME = 20;
 
 const globalStyles = css`
   html,
@@ -29,7 +21,7 @@ const PHI = 1.618;
 const PADDING = 50 / (1 + PHI);
 
 const Background = styled.div`
-  background: ${colors.teal};
+  background: ${teal};
   box-shadow: 0 0 200px rgba(0, 0, 0, 0.4) inset;
 
   box-sizing: border-box;
@@ -45,14 +37,6 @@ const Background = styled.div`
 `;
 
 const R = 35;
-
-const ClockFace = styled.div`
-  width: ${R * 2}vmin;
-  height: ${R * 2}vmin;
-  background: white;
-  border-radius: 50%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-`;
 
 const ringTone = new Audio(
   "https://www.freesoundslibrary.com/wp-content/uploads/2022/03/loud-alarm-clock.mp3#t=12"
@@ -106,6 +90,13 @@ const Content = styled.div`
 
 function App() {
   const [time, setTime] = useState(0);
+  const [isPaused, setIsPaused] = useState(true);
+
+  const togglePaused = () => setIsPaused((p) => !p);
+  const onInput: ChangeEventHandler<HTMLInputElement> = (e) => {
+    setTime(parseFloat(e.target.value));
+    setIsPaused(true);
+  };
 
   return (
     <Background>
@@ -115,10 +106,14 @@ function App() {
         <input
           type="number"
           value={time}
-          onChange={(e) => setTime(parseInt(e.target.value))}
+          onChange={onInput}
+          max={MAX_TIME}
+          min={0}
         />
-        <ClockFace />
-        <div>start stop pause</div>
+        <Clock maxTime={MAX_TIME} time={time} isPaused={isPaused} />
+        <div>
+          <button onClick={togglePaused}>{isPaused ? "Start" : "Stop"}</button>
+        </div>
       </Content>
       <Footer />
     </Background>

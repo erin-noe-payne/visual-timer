@@ -1,0 +1,9 @@
+export const teal = "rgb(143, 215, 190)";
+export const blue = "rgb(11, 88, 152)";
+export const green = "rgb(69, 124, 79)";
+export const yellow2 = "rgb(233, 208, 60)";
+export const yellow1 = "rgb(249, 212, 64)";
+export const orange2 = "rgb(252, 155, 47)";
+export const orange1 = "rgb(246, 108, 50)";
+export const red2 = "rgb(236, 62, 50)";
+export const red1 = "rgb(177, 6, 31)";
