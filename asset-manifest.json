@@ -1,0 +1,12 @@
+{
+  "files": {
+    "main.js": "/visual-timer/static/js/main.7c89d087.js",
+    "static/js/787.7f85758c.chunk.js": "/visual-timer/static/js/787.7f85758c.chunk.js",
+    "index.html": "/visual-timer/index.html",
+    "main.7c89d087.js.map": "/visual-timer/static/js/main.7c89d087.js.map",
+    "787.7f85758c.chunk.js.map": "/visual-timer/static/js/787.7f85758c.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/js/main.7c89d087.js"
+  ]
+}
