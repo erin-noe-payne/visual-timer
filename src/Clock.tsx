@@ -1,15 +1,18 @@
 import styled from "@emotion/styled";
 import * as d3 from "d3";
-import React, { useEffect, useRef } from "react";
-import { teal } from "./colors";
-
-const ringTone = new Audio(
-  "https://www.freesoundslibrary.com/wp-content/uploads/2022/03/loud-alarm-clock.mp3#t=12"
-);
-const ring = () => {
-  ringTone.currentTime = 12;
-  ringTone.play();
-};
+import { arc } from "d3-shape";
+import React, { useEffect, useMemo, useRef } from "react";
+import {
+  blue,
+  green,
+  orange1,
+  orange2,
+  red1,
+  red2,
+  teal,
+  yellow1,
+  yellow2,
+} from "./colors";
 
 const CLOCK_SIZE = 70;
 const FONT_SIZE = 3;
@@ -22,9 +25,18 @@ const Svg = styled.svg`
   }
 `;
 
-const Face = styled.circle`
-  fill: white;
-`;
+const segmentColors = [
+  red1,
+  red2,
+  orange1,
+  orange2,
+  yellow1,
+  yellow2,
+  green,
+  blue,
+];
+
+const timeToTheta = (maxTime: number, time: number) => {};
 
 const Arrow: React.FC<{ radius: number }> = ({ radius }) => {
   const l = 50 - radius;
@@ -38,68 +50,92 @@ const Arrow: React.FC<{ radius: number }> = ({ radius }) => {
   );
 };
 
+type TimerState = "running" | "paused";
+
 export const Clock: React.FC<{
   maxTime: number;
-  time: number;
-  isPaused: boolean;
-}> = ({ maxTime, time, isPaused }) => {
+  msRemaining: number;
+  state: TimerState;
+}> = ({ maxTime, msRemaining, state }) => {
   const svgEl = useRef<SVGSVGElement>(null);
 
+  const timeToAngle = useMemo(
+    () =>
+      d3
+        .scaleLinear()
+        .range([0, Math.PI * 2])
+        .domain([0, maxTime]),
+    [maxTime]
+  );
+
   useEffect(() => {
-    const svg = d3.select(svgEl.current);
+    const canvas = d3.select(svgEl.current).select("#canvas");
 
-    const r = 50;
-    const r_labels = r - 5;
-
-    const timeToAngle = d3.scaleLinear().range([0, 360]).domain([0, maxTime]);
-
-    const labels = svg
-      .selectAll<SVGTextElement, number>(".labels")
-      .data(d3.range(0, maxTime));
-
-    labels.exit().remove();
-    labels
+    canvas
+      .selectAll(".face")
+      .data(["face"])
       .enter()
-      .append("text")
-      .attr("class", "labels")
-      .attr("text-anchor", "middle")
-      .merge(labels)
-      .attr(
-        "x",
-        (d) => r_labels * Math.sin((timeToAngle(d) * Math.PI) / 180) + 50
-      )
-      .attr(
-        "y",
-        (d) =>
-          -r_labels * Math.cos((timeToAngle(d) * Math.PI) / 180) +
-          50 +
-          FONT_SIZE / 2
-      )
-      .text((d) => d);
+      .append("path")
+      .attr("class", "face")
+      .attr("fill", "white")
+      .attr("d", () =>
+        arc()({
+          innerRadius: 0,
+          outerRadius: 50,
+          startAngle: 0,
+          endAngle: Math.PI * 2,
+        })
+      );
 
-    svg
-      .selectAll(".arrow")
-      .attr("transform", `rotate(${timeToAngle(time) + 45})`);
-  }, [time, maxTime]);
+    const segments = [1, 2, 3, 4, 5, 10, 15, 20];
 
-  useEffect(() => {
-    const svg = d3.select(svgEl.current);
+    canvas
+      .selectAll(".segment")
+      .data(segments)
+      .enter()
+      .append("path")
+      .attr("class", "segment")
+      .attr("fill", (d, i) => segmentColors[i])
+      .attr("d", (d, i) =>
+        arc()({
+          innerRadius: 0,
+          outerRadius: 40,
+          startAngle: timeToAngle(maxTime - d),
+          endAngle: timeToAngle(maxTime - (i === 0 ? 0 : segments[i - 1])),
+        })
+      );
 
-    const arrow = svg.selectAll(".arrow");
-    if (isPaused) {
-      arrow.transition();
-    } else {
-      const currentTime = arrow.attr("transform");
-      console.log(currentTime);
+    // const r = 50;
+    // const r_labels = r - 5;
 
-      arrow
-        .transition()
-        .duration(time * 1000)
-        .ease(d3.easeLinear)
-        .attr("transform", `rotate(45)`)
-        .on("end", ring);
-    }
-  }, [isPaused]);
+    // const labels = svg
+    //   .selectAll<SVGTextElement, number>(".labels")
+    //   .data(d3.range(0, maxTime));
+
+    // labels.exit().remove();
+    // labels
+    //   .enter()
+    //   .append("text")
+    //   .attr("class", "labels")
+    //   .attr("text-anchor", "middle")
+    //   .merge(labels)
+    //   .attr(
+    //     "x",
+    //     (d) => r_labels * Math.sin((timeToAngle(d) * Math.PI) / 180) + 50
+    //   )
+    //   .attr(
+    //     "y",
+    //     (d) =>
+    //       -r_labels * Math.cos((timeToAngle(d) * Math.PI) / 180) +
+    //       50 +
+    //       FONT_SIZE / 2
+    //   )
+    //   .text((d) => d);
+
+    // svg
+    //   .selectAll(".arrow")
+    //   .attr("transform", `rotate(${timeToAngle(time) + 45})`);
+  }, [msRemaining, maxTime]);
 
   return (
     <Svg
@@ -108,9 +144,10 @@ export const Clock: React.FC<{
       width={`${CLOCK_SIZE}vmin`}
       viewBox="0 0 100 100"
     >
-      <Face cx={50} cy={50} r={50} />
+      <g id="canvas" transform="translate(50,50)"></g>
+      {/* <Face cx={50} cy={50} r={50} /> */}
       {/* <circle cx={50} cy={50} r={10}></circle> */}
-      <Arrow radius={6} />
+      {/* <Arrow radius={6} /> */}
     </Svg>
   );
 };

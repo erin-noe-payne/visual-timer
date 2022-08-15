@@ -1,4 +1,11 @@
-import React, { ChangeEventHandler, useState } from "react";
+import React, {
+  ChangeEventHandler,
+  FormEventHandler,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import styled from "@emotion/styled";
 import { Global, css, keyframes } from "@emotion/react";
 import { Clock } from "./Clock";
@@ -36,39 +43,6 @@ const Background = styled.div`
   position: relative;
 `;
 
-const R = 35;
-
-const ringTone = new Audio(
-  "https://www.freesoundslibrary.com/wp-content/uploads/2022/03/loud-alarm-clock.mp3#t=12"
-);
-const ring = () => {
-  ringTone.currentTime = 12;
-  ringTone.play();
-};
-
-const AnimatedTimer: React.FC<{ time: number }> = ({ time }) => {
-  const angle = (360 * time) / MAX_TIME;
-
-  const countDown = keyframes`
-    from {
-      transform: rotate(${angle}deg)
-    }
-
-    to {
-      transform: rotate(0deg)
-    }
-    `;
-
-  const Hand = styled.div`
-    width: 1px;
-    height: 100px;
-    background: black;
-    animation: ${countDown} ${time}s linear;
-  `;
-
-  return <Hand onAnimationEnd={() => ring()} />;
-};
-
 const Header = styled.div`
   background: pink;
   display: flex;
@@ -88,31 +62,96 @@ const Content = styled.div`
   align-items: center;
 `;
 
-function App() {
-  const [time, setTime] = useState(0);
-  const [isPaused, setIsPaused] = useState(true);
+type TimerState = "running" | "paused";
 
-  const togglePaused = () => setIsPaused((p) => !p);
-  const onInput: ChangeEventHandler<HTMLInputElement> = (e) => {
-    setTime(parseFloat(e.target.value));
-    setIsPaused(true);
-  };
+const ringTone = new Audio(
+  "https://www.freesoundslibrary.com/wp-content/uploads/2022/03/loud-alarm-clock.mp3#t=12"
+);
+const ring = () => {
+  ringTone.currentTime = 12;
+  ringTone.play();
+};
+
+function App() {
+  const [state, setState] = useState<TimerState>("running");
+  const [msRemaining, setMsRemaining] = useState(0);
+
+  // clock tick effect
+  useEffect(() => {
+    if (state === "paused") {
+      return;
+    }
+    let lastTick = Date.now();
+    const interval = setInterval(() => {
+      const timeElapsed = Date.now() - lastTick;
+      lastTick = Date.now();
+      setMsRemaining((t) => t - timeElapsed);
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [state]);
+
+  const secondsRemaining = Math.round(msRemaining / 1000);
+
+  // set page title effect
+  useEffect(() => {
+    if (state === "running") {
+      const MM = Math.floor(secondsRemaining / 60);
+      const SS = secondsRemaining - MM * 60;
+      document.title = `${MM}:${SS < 10 ? `0${SS}` : SS} remaining`;
+    } else {
+      // TODO, a times up!
+      document.title = "Visual Timer";
+    }
+  }, [secondsRemaining, state]);
+
+  // ring & pause when timer hits 0 effect
+  useEffect(() => {
+    if (secondsRemaining <= 0 && state === "running") {
+      setState("paused");
+      ring();
+    }
+  }, [state, secondsRemaining]);
+
+  // TODO ^ wire up above state to the UI, add pause / play button, input box
+
+  // const [time, setTime] = useState(0);
+  // const [isPaused, setIsPaused] = useState(true);
+
+  const togglePaused = useCallback(
+    () => setState((s) => (s === "running" ? "paused" : "running")),
+    []
+  );
+  const onInput = useCallback<ChangeEventHandler<HTMLInputElement>>((e) => {
+    setMsRemaining(parseFloat(e.target.value) * 1000);
+    setState("paused");
+  }, []);
+  const onSubmit = useCallback<FormEventHandler<HTMLFormElement>>((e) => {
+    e.preventDefault();
+    setState("running");
+  }, []);
 
   return (
     <Background>
       <Global styles={globalStyles} />
       <Header />
       <Content>
-        <input
-          type="number"
-          value={time}
-          onChange={onInput}
-          max={MAX_TIME}
-          min={0}
-        />
-        <Clock maxTime={MAX_TIME} time={time} isPaused={isPaused} />
+        <form onSubmit={onSubmit}>
+          <input
+            type="number"
+            value={secondsRemaining}
+            onChange={onInput}
+            max={MAX_TIME}
+            min={0}
+          />
+        </form>
+        <Clock maxTime={MAX_TIME} msRemaining={msRemaining} state={state} />
         <div>
-          <button onClick={togglePaused}>{isPaused ? "Start" : "Stop"}</button>
+          <button onClick={togglePaused}>
+            {state === "running" ? "Pause" : "Start"}
+          </button>
         </div>
       </Content>
       <Footer />
