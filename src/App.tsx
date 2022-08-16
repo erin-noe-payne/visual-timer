@@ -76,69 +76,72 @@ function App() {
   const [state, setState] = useState<TimerState>("running");
   const [msRemaining, setMsRemaining] = useState(0);
 
+  const secondsRemaining = Math.round(msRemaining / 1000);
+
   // clock tick effect
   useEffect(() => {
     if (state === "paused") {
       return;
     }
-    let lastTick = Date.now();
-    const interval = setInterval(() => {
-      const timeElapsed = Date.now() - lastTick;
-      lastTick = Date.now();
-      setMsRemaining((t) => t - timeElapsed);
-    }, 1000);
+    if (msRemaining <= 0) {
+      setMsRemaining(0);
+      setState("paused");
+      return;
+    }
+    const startTime = Date.now();
+
+    const timeout = setTimeout(() => {
+      ring();
+      setState("paused");
+    }, msRemaining);
 
     return () => {
-      clearInterval(interval);
+      const timeElapsed = Date.now() - startTime;
+      setMsRemaining((t) => Math.max(t - timeElapsed, 0));
+      clearTimeout(timeout);
     };
-  }, [state]);
-
-  const secondsRemaining = Math.round(msRemaining / 1000);
+  }, [state, msRemaining]);
 
   // set page title effect
-  useEffect(() => {
-    if (state === "running") {
-      const MM = Math.floor(secondsRemaining / 60);
-      const SS = secondsRemaining - MM * 60;
-      document.title = `${MM}:${SS < 10 ? `0${SS}` : SS} remaining`;
-    } else {
-      // TODO, a times up!
-      document.title = "Visual Timer";
-    }
-  }, [secondsRemaining, state]);
+  // useEffect(() => {
+  //   if (state === "running") {
+  //     const MM = Math.floor(secondsRemaining / 60);
+  //     const SS = secondsRemaining - MM * 60;
+  //     document.title = `${MM}:${SS < 10 ? `0${SS}` : SS} remaining`;
+  //   } else {
+  //     // TODO, a times up!
+  //     document.title = "Visual Timer";
+  //   }
+  // }, [secondsRemaining, state]);
 
   // ring & pause when timer hits 0 effect
-  useEffect(() => {
-    if (secondsRemaining <= 0 && state === "running") {
-      setState("paused");
-      ring();
-    }
-  }, [state, secondsRemaining]);
+  // useEffect(() => {
+  //   if (secondsRemaining <= 0 && state === "running") {
+  //     setState("paused");
+  //     ring();
+  //   }
+  // }, [state, secondsRemaining]);
 
   // TODO ^ wire up above state to the UI, add pause / play button, input box
 
   // const [time, setTime] = useState(0);
   // const [isPaused, setIsPaused] = useState(true);
 
-  const togglePaused = useCallback(
-    () => setState((s) => (s === "running" ? "paused" : "running")),
-    []
-  );
   const onInput = useCallback<ChangeEventHandler<HTMLInputElement>>((e) => {
     setMsRemaining(parseFloat(e.target.value) * 1000);
     setState("paused");
   }, []);
   const onSubmit = useCallback<FormEventHandler<HTMLFormElement>>((e) => {
     e.preventDefault();
-    setState("running");
+    setState((s) => (s === "running" ? "paused" : "running"));
   }, []);
 
   return (
     <Background>
       <Global styles={globalStyles} />
       <Header />
-      <Content>
-        <form onSubmit={onSubmit}>
+      <form onSubmit={onSubmit}>
+        <Content>
           <input
             type="number"
             value={secondsRemaining}
@@ -146,14 +149,16 @@ function App() {
             max={MAX_TIME}
             min={0}
           />
-        </form>
-        <Clock maxTime={MAX_TIME} msRemaining={msRemaining} state={state} />
-        <div>
-          <button onClick={togglePaused}>
-            {state === "running" ? "Pause" : "Start"}
-          </button>
-        </div>
-      </Content>
+          <Clock
+            maxTime={MAX_TIME * 1000}
+            msRemaining={msRemaining}
+            state={state}
+          />
+          <div>
+            <button>{state === "running" ? "Pause" : "Start"}</button>
+          </div>
+        </Content>
+      </form>
       <Footer />
     </Background>
   );

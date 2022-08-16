@@ -1,6 +1,7 @@
 import styled from "@emotion/styled";
 import * as d3 from "d3";
 import { arc } from "d3-shape";
+import { interpolateObject } from "d3-interpolate";
 import React, { useEffect, useMemo, useRef } from "react";
 import {
   blue,
@@ -25,6 +26,10 @@ const Svg = styled.svg`
   }
 `;
 
+const segmentBreakpoints = [1, 2, 3, 4, 5, 10, 15, 20].map((n) => n * 1000);
+const segmentsData = segmentBreakpoints.map((n, i) =>
+  i === 0 ? [0, n] : [segmentBreakpoints[i - 1], n]
+);
 const segmentColors = [
   red1,
   red2,
@@ -36,16 +41,15 @@ const segmentColors = [
   blue,
 ];
 
-const timeToTheta = (maxTime: number, time: number) => {};
+const radToDeg = (rad: number) => (rad * 180) / Math.PI;
 
-const Arrow: React.FC<{ radius: number }> = ({ radius }) => {
-  const l = 50 - radius;
+const Arrow: React.FC<{ r: number }> = ({ r }) => {
   return (
     <path
       className="arrow"
-      d={`M ${l},50 A ${radius},${radius} 0 1 0 50,${l} L ${l},${l} L ${l},50`}
+      d={`M ${r},0 A ${r},${r} 0 1 0 0,${r} L ${r},${r} rL ${r},0`}
       fill={teal}
-      style={{ transformOrigin: "center center" }}
+      transform={"rotate(-135)"}
     />
   );
 };
@@ -69,9 +73,10 @@ export const Clock: React.FC<{
   );
 
   useEffect(() => {
-    const canvas = d3.select(svgEl.current).select("#canvas");
+    const svg = d3.select(svgEl.current);
 
-    canvas
+    svg
+      .select("#face")
       .selectAll(".face")
       .data(["face"])
       .enter()
@@ -87,23 +92,85 @@ export const Clock: React.FC<{
         })
       );
 
-    const segments = [1, 2, 3, 4, 5, 10, 15, 20];
-
-    canvas
+    svg
+      .select("#segments")
       .selectAll(".segment")
-      .data(segments)
+      .data(segmentsData)
       .enter()
       .append("path")
       .attr("class", "segment")
-      .attr("fill", (d, i) => segmentColors[i])
-      .attr("d", (d, i) =>
-        arc()({
+      .attr("fill", (_, i) => segmentColors[i])
+      .attr("d", ([startTime, stopTime]) => {
+        return arc()({
           innerRadius: 0,
           outerRadius: 40,
-          startAngle: timeToAngle(maxTime - d),
-          endAngle: timeToAngle(maxTime - (i === 0 ? 0 : segments[i - 1])),
-        })
-      );
+          startAngle: timeToAngle(-startTime),
+          endAngle: timeToAngle(-stopTime),
+        });
+      });
+
+    const mask = svg
+      .select("#segments")
+      .selectAll<SVGPathElement, string>(".mask")
+      .data([
+        arc()
+          .innerRadius(0)
+          .outerRadius(41)
+          .startAngle(0)
+          .endAngle(timeToAngle(maxTime - msRemaining)),
+      ]);
+    mask
+      .enter()
+      .append("path")
+      .attr("class", "mask")
+      .attr("fill", "white")
+      .merge(mask)
+      //@ts-ignore
+      .attr("d", (arc) => arc());
+
+    // TODO: draw segments only once, animate a white mask over top of segments
+    //   .transition()
+    //   .ease(d3.easeLinear)
+    //   .duration(([startTime, stopTime]) => Math.max(msRemaining - startTime, 0))
+    //   .attr("d", ([startTime, stopTime]) =>
+    //     arc()({
+    //       innerRadius: 0,
+    //       outerRadius: 40,
+    //       startAngle: 0,
+    //       endAngle: msRemaining - stopTime < 0 ? 0 : timeToAngle(stopTime),
+    //     })
+    //   );
+
+    const rotater = svg.select("#rotater");
+    rotater.attr("transform", `rotate(${radToDeg(timeToAngle(msRemaining))})`);
+    if (state === "running") {
+      rotater
+        .transition()
+        .ease(d3.easeLinear)
+        .duration(msRemaining)
+        .attr("transform", `rotate(0)`);
+
+      mask
+        .transition()
+        .ease(d3.easeLinear)
+        .duration(msRemaining)
+        .attrTween("d", (arc) => {
+          const interpolate = d3.interpolate(
+            timeToAngle(maxTime - msRemaining),
+            Math.PI * 2
+          );
+
+          return (t) => {
+            console.log(t, interpolate(t));
+            arc.endAngle(interpolate(t));
+            //@ts-ignore
+            return arc();
+          };
+        });
+    } else {
+      rotater.transition();
+      mask.transition();
+    }
 
     // const r = 50;
     // const r_labels = r - 5;
@@ -131,11 +198,7 @@ export const Clock: React.FC<{
     //       FONT_SIZE / 2
     //   )
     //   .text((d) => d);
-
-    // svg
-    //   .selectAll(".arrow")
-    //   .attr("transform", `rotate(${timeToAngle(time) + 45})`);
-  }, [msRemaining, maxTime]);
+  }, [msRemaining, maxTime, state, timeToAngle]);
 
   return (
     <Svg
@@ -144,10 +207,15 @@ export const Clock: React.FC<{
       width={`${CLOCK_SIZE}vmin`}
       viewBox="0 0 100 100"
     >
-      <g id="canvas" transform="translate(50,50)"></g>
+      <g id="canvas" transform="translate(50,50)">
+        <g id="face" />
+        <g id="rotater">
+          <g id="segments" />
+          <Arrow r={6} />
+        </g>
+      </g>
       {/* <Face cx={50} cy={50} r={50} /> */}
       {/* <circle cx={50} cy={50} r={10}></circle> */}
-      {/* <Arrow radius={6} /> */}
     </Svg>
   );
 };
