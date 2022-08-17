@@ -1,7 +1,6 @@
 import styled from "@emotion/styled";
 import * as d3 from "d3";
 import { arc } from "d3-shape";
-import { interpolateObject } from "d3-interpolate";
 import React, { useEffect, useMemo, useRef } from "react";
 import {
   blue,
@@ -17,12 +16,14 @@ import {
 
 const CLOCK_SIZE = 70;
 const FONT_SIZE = 3;
+const tau = Math.PI * 2;
 
 const Svg = styled.svg`
-  & .labels {
+  & .minute {
     font-family: "Lucida Sans", "Lucida Sans Regular", "Lucida Grande",
       "Lucida Sans Unicode", Geneva, Verdana, sans-serif;
     font-size: ${FONT_SIZE}px;
+    color: black;
   }
 `;
 
@@ -41,7 +42,7 @@ const segmentColors = [
   blue,
 ];
 
-const radToDeg = (rad: number) => (rad * 180) / Math.PI;
+const radToDeg = (rad: number) => (rad * 360) / tau;
 
 const Arrow: React.FC<{ r: number }> = ({ r }) => {
   return (
@@ -50,6 +51,7 @@ const Arrow: React.FC<{ r: number }> = ({ r }) => {
       d={`M ${r},0 A ${r},${r} 0 1 0 0,${r} L ${r},${r} rL ${r},0`}
       fill={teal}
       transform={"rotate(-135)"}
+      style={{}}
     />
   );
 };
@@ -64,18 +66,15 @@ export const Clock: React.FC<{
   const svgEl = useRef<SVGSVGElement>(null);
 
   const timeToAngle = useMemo(
-    () =>
-      d3
-        .scaleLinear()
-        .range([0, Math.PI * 2])
-        .domain([0, maxTime]),
+    () => d3.scaleLinear().range([0, tau]).domain([0, maxTime]),
     [maxTime]
   );
 
+  // draws the clock face (one time effect)
   useEffect(() => {
-    const svg = d3.select(svgEl.current);
-
-    svg
+    console.log("face effect");
+    // draw face
+    d3.select(svgEl.current)
       .select("#face")
       .selectAll(".face")
       .data(["face"])
@@ -88,9 +87,50 @@ export const Clock: React.FC<{
           innerRadius: 0,
           outerRadius: 50,
           startAngle: 0,
-          endAngle: Math.PI * 2,
+          endAngle: tau,
         })
       );
+  }, [svgEl]);
+
+  // draws the numbers on the face
+  useEffect(() => {
+    const maxMinutes = maxTime / 1000;
+    const minutes = d3.range(maxMinutes);
+    const anglePerMinute = tau / maxMinutes;
+    const minutePositions = minutes.map((m) =>
+      d3
+        .arc()
+        .innerRadius(40)
+        .outerRadius(50)
+        .startAngle(m * anglePerMinute - anglePerMinute / 2)
+        .endAngle((m + 1) * anglePerMinute - anglePerMinute / 2)
+        //@ts-ignore
+        .centroid()
+    );
+
+    console.log(minutePositions);
+
+    const minuteTicks = d3
+      .select(svgEl.current)
+      .select("#face")
+      .selectAll<SVGTextElement, number[]>(".minute")
+      .data(minutes);
+    minuteTicks.exit().remove();
+
+    minuteTicks
+      .enter()
+      .append("text")
+      .attr("class", "minute")
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "middle")
+      .text((d) => d)
+      .merge(minuteTicks)
+      .attr("x", (_, i) => minutePositions[i][0])
+      .attr("y", (_, i) => minutePositions[i][1]);
+  }, [maxTime]);
+
+  useEffect(() => {
+    const svg = d3.select(svgEl.current);
 
     svg
       .select("#segments")
@@ -128,19 +168,6 @@ export const Clock: React.FC<{
       //@ts-ignore
       .attr("d", (arc) => arc());
 
-    // TODO: draw segments only once, animate a white mask over top of segments
-    //   .transition()
-    //   .ease(d3.easeLinear)
-    //   .duration(([startTime, stopTime]) => Math.max(msRemaining - startTime, 0))
-    //   .attr("d", ([startTime, stopTime]) =>
-    //     arc()({
-    //       innerRadius: 0,
-    //       outerRadius: 40,
-    //       startAngle: 0,
-    //       endAngle: msRemaining - stopTime < 0 ? 0 : timeToAngle(stopTime),
-    //     })
-    //   );
-
     const rotation = svg.select("#rotation");
     const startAngle = radToDeg(timeToAngle(msRemaining));
     rotation.attr("transform", `rotate(${startAngle})`);
@@ -165,7 +192,7 @@ export const Clock: React.FC<{
         .attrTween("d", (arc) => {
           const interpolate = d3.interpolate(
             timeToAngle(maxTime - msRemaining),
-            Math.PI * 2
+            tau
           );
 
           return (t) => {

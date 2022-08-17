@@ -1,13 +1,12 @@
-import React, {
+import { css, Global } from "@emotion/react";
+import styled from "@emotion/styled";
+import {
   ChangeEventHandler,
   FormEventHandler,
   useCallback,
   useEffect,
-  useRef,
   useState,
 } from "react";
-import styled from "@emotion/styled";
-import { Global, css, keyframes } from "@emotion/react";
 import { Clock } from "./Clock";
 import { teal } from "./colors";
 
