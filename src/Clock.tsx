@@ -141,14 +141,22 @@ export const Clock: React.FC<{
     //     })
     //   );
 
-    const rotater = svg.select("#rotater");
-    rotater.attr("transform", `rotate(${radToDeg(timeToAngle(msRemaining))})`);
+    const rotation = svg.select("#rotation");
+    const startAngle = radToDeg(timeToAngle(msRemaining));
+    rotation.attr("transform", `rotate(${startAngle})`);
     if (state === "running") {
-      rotater
+      rotation
         .transition()
         .ease(d3.easeLinear)
         .duration(msRemaining)
-        .attr("transform", `rotate(0)`);
+        .attrTween("transform", () => {
+          const interpolate = d3.interpolate(startAngle, 0);
+
+          return (t: number) => {
+            const angle = interpolate(t);
+            return `rotate(${angle})`;
+          };
+        });
 
       mask
         .transition()
@@ -161,14 +169,13 @@ export const Clock: React.FC<{
           );
 
           return (t) => {
-            console.log(t, interpolate(t));
             arc.endAngle(interpolate(t));
             //@ts-ignore
             return arc();
           };
         });
     } else {
-      rotater.transition();
+      rotation.transition();
       mask.transition();
     }
 
@@ -207,15 +214,13 @@ export const Clock: React.FC<{
       width={`${CLOCK_SIZE}vmin`}
       viewBox="0 0 100 100"
     >
-      <g id="canvas" transform="translate(50,50)">
+      <g transform="translate(50,50)">
         <g id="face" />
-        <g id="rotater">
+        <g id="rotation">
           <g id="segments" />
           <Arrow r={6} />
         </g>
       </g>
-      {/* <Face cx={50} cy={50} r={50} /> */}
-      {/* <circle cx={50} cy={50} r={10}></circle> */}
     </Svg>
   );
 };

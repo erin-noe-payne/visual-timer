@@ -64,10 +64,21 @@ const Content = styled.div`
 
 type TimerState = "running" | "paused";
 
-const ringTone = new Audio(
-  "https://www.freesoundslibrary.com/wp-content/uploads/2022/03/loud-alarm-clock.mp3#t=12"
-);
+// in order for sound to work on mobile, audio element must be initialized in response to user interaction
+// https://stackoverflow.com/questions/46345883/why-audio-not-playing-on-mobile-browser
+// https://pupunzi.open-lab.com/2013/03/13/making-html5-audio-actually-work-on-mobile/
+let ringTone: HTMLAudioElement | null = null;
+const initRingTone = () => {
+  if (ringTone == null) {
+    ringTone = new Audio(
+      "https://www.freesoundslibrary.com/wp-content/uploads/2022/03/loud-alarm-clock.mp3#t=12"
+    );
+  }
+};
 const ring = () => {
+  if (ringTone == null) {
+    return;
+  }
   ringTone.currentTime = 12;
   ringTone.play();
 };
@@ -133,6 +144,7 @@ function App() {
   }, []);
   const onSubmit = useCallback<FormEventHandler<HTMLFormElement>>((e) => {
     e.preventDefault();
+    initRingTone();
     setState((s) => (s === "running" ? "paused" : "running"));
   }, []);
 
