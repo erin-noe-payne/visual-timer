@@ -124,19 +124,6 @@ function App() {
   //   }
   // }, [secondsRemaining, state]);
 
-  // ring & pause when timer hits 0 effect
-  // useEffect(() => {
-  //   if (secondsRemaining <= 0 && state === "running") {
-  //     setState("paused");
-  //     ring();
-  //   }
-  // }, [state, secondsRemaining]);
-
-  // TODO ^ wire up above state to the UI, add pause / play button, input box
-
-  // const [time, setTime] = useState(0);
-  // const [isPaused, setIsPaused] = useState(true);
-
   const onInput = useCallback<ChangeEventHandler<HTMLInputElement>>((e) => {
     setMsRemaining(parseFloat(e.target.value) * 1000);
     setState("paused");
@@ -145,6 +132,14 @@ function App() {
     e.preventDefault();
     initRingTone();
     setState((s) => (s === "running" ? "paused" : "running"));
+  }, []);
+  const onClockDrag = useCallback((msRemaining: number) => {
+    setMsRemaining(msRemaining);
+    setState("paused");
+  }, []);
+  const onClockRelease = useCallback(() => {
+    initRingTone();
+    setState("running");
   }, []);
 
   return (
@@ -164,6 +159,8 @@ function App() {
             maxTime={MAX_TIME * 1000}
             msRemaining={msRemaining}
             state={state}
+            onDrag={onClockDrag}
+            onRelease={onClockRelease}
           />
           <div>
             <button>{state === "running" ? "Pause" : "Start"}</button>

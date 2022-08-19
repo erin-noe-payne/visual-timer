@@ -24,6 +24,8 @@ const Svg = styled.svg`
       "Lucida Sans Unicode", Geneva, Verdana, sans-serif;
     font-size: ${FONT_SIZE}px;
     color: black;
+    cursor: pointer;
+    user-select: none;
   }
 `;
 
@@ -48,7 +50,7 @@ const Arrow: React.FC<{ r: number }> = ({ r }) => {
   return (
     <path
       className="arrow"
-      d={`M ${r},0 A ${r},${r} 0 1 0 0,${r} L ${r},${r} rL ${r},0`}
+      d={`M ${r},0 A ${r},${r} 0 1 0 0,${r} L ${r},${r} L ${r},0`}
       fill={teal}
       transform={"rotate(-135)"}
       style={{}}
@@ -61,8 +63,10 @@ type TimerState = "running" | "paused";
 export const Clock: React.FC<{
   maxTime: number;
   msRemaining: number;
+  onDrag: (value: number) => void;
+  onRelease: VoidFunction;
   state: TimerState;
-}> = ({ maxTime, msRemaining, state }) => {
+}> = ({ maxTime, msRemaining, state, onDrag, onRelease }) => {
   const svgEl = useRef<SVGSVGElement>(null);
 
   const timeToAngle = useMemo(
@@ -72,7 +76,6 @@ export const Clock: React.FC<{
 
   // draws the clock face (one time effect)
   useEffect(() => {
-    console.log("face effect");
     // draw face
     d3.select(svgEl.current)
       .select("#face")
@@ -89,6 +92,31 @@ export const Clock: React.FC<{
           startAngle: 0,
           endAngle: tau,
         })
+      );
+
+    const getMsRemaining = (x: number, y: number) => {
+      let angle = Math.atan2(y, x) + tau / 4;
+      angle = angle < 0 ? tau + angle : angle;
+      const msRemaining = (maxTime * angle) / tau;
+      return msRemaining;
+    };
+
+    d3.select(svgEl.current)
+      .select("#canvas")
+      .call(
+        //@ts-ignore
+        d3
+          .drag()
+          .on("start", ({ x, y }) => {
+            onDrag(getMsRemaining(x, y));
+          })
+          .on("drag", ({ x, y }) => {
+            onDrag(getMsRemaining(x, y));
+          })
+          .on("end", ({ x, y }) => {
+            onDrag(getMsRemaining(x, y));
+            onRelease();
+          })
       );
   }, [svgEl]);
 
@@ -108,8 +136,6 @@ export const Clock: React.FC<{
         .centroid()
     );
 
-    console.log(minutePositions);
-
     const minuteTicks = d3
       .select(svgEl.current)
       .select("#face")
@@ -126,8 +152,13 @@ export const Clock: React.FC<{
       .text((d) => d)
       .merge(minuteTicks)
       .attr("x", (_, i) => minutePositions[i][0])
-      .attr("y", (_, i) => minutePositions[i][1]);
-  }, [maxTime]);
+      .attr("y", (_, i) => minutePositions[i][1])
+      .on("click", (_, d) => {
+        console.log(d);
+        onDrag(d * 1000);
+        onRelease();
+      });
+  }, [maxTime, onDrag, onRelease]);
 
   useEffect(() => {
     const svg = d3.select(svgEl.current);
@@ -205,33 +236,6 @@ export const Clock: React.FC<{
       rotation.transition();
       mask.transition();
     }
-
-    // const r = 50;
-    // const r_labels = r - 5;
-
-    // const labels = svg
-    //   .selectAll<SVGTextElement, number>(".labels")
-    //   .data(d3.range(0, maxTime));
-
-    // labels.exit().remove();
-    // labels
-    //   .enter()
-    //   .append("text")
-    //   .attr("class", "labels")
-    //   .attr("text-anchor", "middle")
-    //   .merge(labels)
-    //   .attr(
-    //     "x",
-    //     (d) => r_labels * Math.sin((timeToAngle(d) * Math.PI) / 180) + 50
-    //   )
-    //   .attr(
-    //     "y",
-    //     (d) =>
-    //       -r_labels * Math.cos((timeToAngle(d) * Math.PI) / 180) +
-    //       50 +
-    //       FONT_SIZE / 2
-    //   )
-    //   .text((d) => d);
   }, [msRemaining, maxTime, state, timeToAngle]);
 
   return (
@@ -242,10 +246,12 @@ export const Clock: React.FC<{
       viewBox="0 0 100 100"
     >
       <g transform="translate(50,50)">
-        <g id="face" />
-        <g id="rotation">
-          <g id="segments" />
-          <Arrow r={6} />
+        <g id="canvas">
+          <g id="face" />
+          <g id="rotation">
+            <g id="segments" />
+            <Arrow r={6} />
+          </g>
         </g>
       </g>
     </Svg>
