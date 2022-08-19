@@ -86,8 +86,6 @@ function App() {
   const [state, setState] = useState<TimerState>("running");
   const [msRemaining, setMsRemaining] = useState(0);
 
-  const secondsRemaining = Math.round(msRemaining / 1000);
-
   // clock tick effect
   useEffect(() => {
     if (state === "paused") {
@@ -113,6 +111,7 @@ function App() {
   }, [state, msRemaining]);
 
   // set page title effect
+  // const secondsRemaining = Math.round(msRemaining / 1000);
   // useEffect(() => {
   //   if (state === "running") {
   //     const MM = Math.floor(secondsRemaining / 60);
@@ -124,15 +123,6 @@ function App() {
   //   }
   // }, [secondsRemaining, state]);
 
-  const onInput = useCallback<ChangeEventHandler<HTMLInputElement>>((e) => {
-    setMsRemaining(parseFloat(e.target.value) * 1000);
-    setState("paused");
-  }, []);
-  const onSubmit = useCallback<FormEventHandler<HTMLFormElement>>((e) => {
-    e.preventDefault();
-    initRingTone();
-    setState((s) => (s === "running" ? "paused" : "running"));
-  }, []);
   const onClockDrag = useCallback((msRemaining: number) => {
     setMsRemaining(msRemaining);
     setState("paused");
@@ -146,27 +136,15 @@ function App() {
     <Background>
       <Global styles={globalStyles} />
       <Header />
-      <form onSubmit={onSubmit}>
-        <Content>
-          <input
-            type="number"
-            value={secondsRemaining}
-            onChange={onInput}
-            max={MAX_TIME}
-            min={0}
-          />
-          <Clock
-            maxTime={MAX_TIME * 1000}
-            msRemaining={msRemaining}
-            state={state}
-            onDrag={onClockDrag}
-            onRelease={onClockRelease}
-          />
-          <div>
-            <button>{state === "running" ? "Pause" : "Start"}</button>
-          </div>
-        </Content>
-      </form>
+      <Content>
+        <Clock
+          maxTime={MAX_TIME * 1000}
+          msRemaining={msRemaining}
+          state={state}
+          onDrag={onClockDrag}
+          onRelease={onClockRelease}
+        />
+      </Content>
       <Footer />
     </Background>
   );

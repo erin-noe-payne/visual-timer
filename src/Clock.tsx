@@ -14,7 +14,7 @@ import {
   yellow2,
 } from "./colors";
 
-const CLOCK_SIZE = 70;
+const CLOCK_SIZE = 80;
 const FONT_SIZE = 3;
 const tau = Math.PI * 2;
 
@@ -29,11 +29,11 @@ const Svg = styled.svg`
   }
 `;
 
-const segmentBreakpoints = [1, 2, 3, 4, 5, 10, 15, 20].map((n) => n * 1000);
-const segmentsData = segmentBreakpoints.map((n, i) =>
-  i === 0 ? [0, n] : [segmentBreakpoints[i - 1], n]
+const pieSliceBreakpoints = [1, 2, 3, 4, 5, 10, 15, 20].map((n) => n * 1000);
+const pieSlicesData = pieSliceBreakpoints.map((n, i) =>
+  i === 0 ? [0, n] : [pieSliceBreakpoints[i - 1], n]
 );
-const segmentColors = [
+const pieSliceColors = [
   red1,
   red2,
   orange1,
@@ -74,10 +74,11 @@ export const Clock: React.FC<{
     [maxTime]
   );
 
-  // draws the clock face (one time effect)
   useEffect(() => {
+    const svg = d3.select(svgEl.current);
+
     // draw face
-    d3.select(svgEl.current)
+    svg
       .select("#face")
       .selectAll(".face")
       .data(["face"])
@@ -94,34 +95,7 @@ export const Clock: React.FC<{
         })
       );
 
-    const getMsRemaining = (x: number, y: number) => {
-      let angle = Math.atan2(y, x) + tau / 4;
-      angle = angle < 0 ? tau + angle : angle;
-      const msRemaining = (maxTime * angle) / tau;
-      return msRemaining;
-    };
-
-    d3.select(svgEl.current)
-      .select("#canvas")
-      .call(
-        //@ts-ignore
-        d3
-          .drag()
-          .on("start", ({ x, y }) => {
-            onDrag(getMsRemaining(x, y));
-          })
-          .on("drag", ({ x, y }) => {
-            onDrag(getMsRemaining(x, y));
-          })
-          .on("end", ({ x, y }) => {
-            onDrag(getMsRemaining(x, y));
-            onRelease();
-          })
-      );
-  }, [svgEl]);
-
-  // draws the numbers on the face
-  useEffect(() => {
+    // draw numbers on the face
     const maxMinutes = maxTime / 1000;
     const minutes = d3.range(maxMinutes);
     const anglePerMinute = tau / maxMinutes;
@@ -158,19 +132,39 @@ export const Clock: React.FC<{
         onDrag(d * 1000);
         onRelease();
       });
-  }, [maxTime, onDrag, onRelease]);
 
-  useEffect(() => {
-    const svg = d3.select(svgEl.current);
+    // add drag interaction
+    svg.select("#canvas").call(
+      //@ts-ignore
+      d3
+        .drag()
+        .on("start", ({ x, y }) => {
+          onDrag(msRemainingAtXY(x, y));
+        })
+        .on("drag", ({ x, y }) => {
+          onDrag(msRemainingAtXY(x, y));
+        })
+        .on("end", ({ x, y }) => {
+          onDrag(msRemainingAtXY(x, y));
+          onRelease();
+        })
+    );
+    const msRemainingAtXY = (x: number, y: number) => {
+      let angle = Math.atan2(y, x) + tau / 4;
+      angle = angle < 0 ? tau + angle : angle;
+      const msRemaining = (maxTime * angle) / tau;
+      return msRemaining;
+    };
 
+    // draw colored pie slices
     svg
-      .select("#segments")
-      .selectAll(".segment")
-      .data(segmentsData)
+      .select("#pieSlices")
+      .selectAll(".pieSlice")
+      .data(pieSlicesData)
       .enter()
       .append("path")
-      .attr("class", "segment")
-      .attr("fill", (_, i) => segmentColors[i])
+      .attr("class", "pieSlice")
+      .attr("fill", (_, i) => pieSliceColors[i])
       .attr("d", ([startTime, stopTime]) => {
         return arc()({
           innerRadius: 0,
@@ -181,7 +175,7 @@ export const Clock: React.FC<{
       });
 
     const mask = svg
-      .select("#segments")
+      .select("#pieSlices")
       .selectAll<SVGPathElement, string>(".mask")
       .data([
         arc()
@@ -249,7 +243,7 @@ export const Clock: React.FC<{
         <g id="canvas">
           <g id="face" />
           <g id="rotation">
-            <g id="segments" />
+            <g id="pieSlices" />
             <Arrow r={6} />
           </g>
         </g>
