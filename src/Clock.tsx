@@ -14,8 +14,8 @@ import {
   yellow2,
 } from "./colors";
 
-const CLOCK_SIZE = 80;
-const FONT_SIZE = 3;
+const CLOCK_SIZE = 100;
+const FONT_SIZE = 5;
 const tau = Math.PI * 2;
 
 const Svg = styled.svg`
@@ -27,7 +27,18 @@ const Svg = styled.svg`
     cursor: pointer;
     user-select: none;
   }
+
+  /* .outer {
+    filter: drop-shadow(0 1.5px 1.5px rgba(0, 0, 0, 0.4));
+  } */
 `;
+
+const boxShadowFromAngle = (angle: number): string => {
+  const r = 1.5;
+  const x = (Math.sin(angle) * r).toFixed(2);
+  const y = (Math.cos(angle) * r).toFixed(2);
+  return `drop-shadow(${x}px ${y}px ${r}px rgba(0, 0, 0, 0.4))`;
+};
 
 const pieSliceBreakpoints = [1, 2, 3, 4, 5, 10, 15, 20].map((n) => n * 1000);
 const pieSlicesData = pieSliceBreakpoints.map((n, i) =>
@@ -60,6 +71,13 @@ const Arrow: React.FC<{ r: number }> = ({ r }) => {
 
 type TimerState = "running" | "paused";
 
+const radius = {
+  face: [0, 85],
+  pieSegments: [0, 52],
+  numbers: [52, 72],
+  outer: [72, 85],
+};
+
 export const Clock: React.FC<{
   maxTime: number;
   msRemaining: number;
@@ -88,8 +106,27 @@ export const Clock: React.FC<{
       .attr("fill", "white")
       .attr("d", () =>
         arc()({
-          innerRadius: 0,
-          outerRadius: 50,
+          innerRadius: radius.face[0],
+          outerRadius: radius.face[1],
+          startAngle: 0,
+          endAngle: tau,
+        })
+      );
+
+    // draw outer ring
+    svg
+      .select("#face")
+      .selectAll(".outer")
+      .data(["outer"])
+      .enter()
+      .append("path")
+      .attr("class", "outer")
+      .attr("fill", teal)
+      .attr("filter", "drop-shadow(0 1.5px 1.5px rgba(0, 0, 0, 0.4))")
+      .attr("d", () =>
+        arc()({
+          innerRadius: radius.outer[0],
+          outerRadius: radius.outer[1],
           startAngle: 0,
           endAngle: tau,
         })
@@ -102,8 +139,8 @@ export const Clock: React.FC<{
     const minutePositions = minutes.map((m) =>
       d3
         .arc()
-        .innerRadius(40)
-        .outerRadius(50)
+        .innerRadius(radius.numbers[0])
+        .outerRadius(radius.numbers[1])
         .startAngle(m * anglePerMinute - anglePerMinute / 2)
         .endAngle((m + 1) * anglePerMinute - anglePerMinute / 2)
         //@ts-ignore
@@ -128,7 +165,6 @@ export const Clock: React.FC<{
       .attr("x", (_, i) => minutePositions[i][0])
       .attr("y", (_, i) => minutePositions[i][1])
       .on("click", (_, d) => {
-        console.log(d);
         onDrag(d * 1000);
         onRelease();
       });
@@ -167,8 +203,8 @@ export const Clock: React.FC<{
       .attr("fill", (_, i) => pieSliceColors[i])
       .attr("d", ([startTime, stopTime]) => {
         return arc()({
-          innerRadius: 0,
-          outerRadius: 40,
+          innerRadius: radius.pieSegments[0],
+          outerRadius: radius.pieSegments[1],
           startAngle: timeToAngle(-startTime),
           endAngle: timeToAngle(-stopTime),
         });
@@ -179,8 +215,8 @@ export const Clock: React.FC<{
       .selectAll<SVGPathElement, string>(".mask")
       .data([
         arc()
-          .innerRadius(0)
-          .outerRadius(41)
+          .innerRadius(radius.pieSegments[0])
+          .outerRadius(radius.pieSegments[1] + 1)
           .startAngle(0)
           .endAngle(timeToAngle(maxTime - msRemaining)),
       ]);
@@ -194,15 +230,18 @@ export const Clock: React.FC<{
       .attr("d", (arc) => arc());
 
     const rotation = svg.select("#rotation");
-    const startAngle = radToDeg(timeToAngle(msRemaining));
-    rotation.attr("transform", `rotate(${startAngle})`);
+    const arrow = svg.select(".arrow");
+    const startRad = timeToAngle(msRemaining);
+    const startDeg = radToDeg(startRad);
+    rotation.attr("transform", `rotate(${startDeg})`);
+    arrow.attr("filter", boxShadowFromAngle(startRad - (3 * tau) / 8));
     if (state === "running") {
       rotation
         .transition()
         .ease(d3.easeLinear)
         .duration(msRemaining)
         .attrTween("transform", () => {
-          const interpolate = d3.interpolate(startAngle, 0);
+          const interpolate = d3.interpolate(startDeg, 0);
 
           return (t: number) => {
             const angle = interpolate(t);
@@ -226,25 +265,37 @@ export const Clock: React.FC<{
             return arc();
           };
         });
+
+      arrow
+        .transition()
+        .ease(d3.easeLinear)
+        .duration(msRemaining)
+        .attrTween("filter", () => {
+          const interpolate = d3.interpolate(startRad, 0);
+          return (t: number) => {
+            return boxShadowFromAngle(interpolate(t) - (3 * tau) / 8);
+          };
+        });
     } else {
       rotation.transition();
       mask.transition();
+      arrow.transition();
     }
-  }, [msRemaining, maxTime, state, timeToAngle]);
+  }, [msRemaining, maxTime, state, timeToAngle, onDrag, onRelease]);
 
   return (
     <Svg
       ref={svgEl}
       height={`${CLOCK_SIZE}vmin`}
       width={`${CLOCK_SIZE}vmin`}
-      viewBox="0 0 100 100"
+      viewBox="0 0 200 200"
     >
-      <g transform="translate(50,50)">
+      <g transform="translate(100,100)">
         <g id="canvas">
           <g id="face" />
           <g id="rotation">
             <g id="pieSlices" />
-            <Arrow r={6} />
+            <Arrow r={12} />
           </g>
         </g>
       </g>

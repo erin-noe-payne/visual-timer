@@ -27,8 +27,8 @@ const PHI = 1.618;
 const PADDING = 50 / (1 + PHI);
 
 const Background = styled.div`
-  background: ${teal};
-  box-shadow: 0 0 200px rgba(0, 0, 0, 0.4) inset;
+  background: white;
+  /* box-shadow: 0 0 200px rgba(0, 0, 0, 0.4) inset; */
 
   box-sizing: border-box;
   width: 100vw;
