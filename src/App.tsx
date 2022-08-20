@@ -138,7 +138,7 @@ function App() {
       <Header />
       <Content>
         <Clock
-          maxTime={MAX_TIME * 1000}
+          maxTime={MAX_TIME * 1000 * 60}
           msRemaining={msRemaining}
           state={state}
           onDrag={onClockDrag}

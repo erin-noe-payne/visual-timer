@@ -14,6 +14,8 @@ import {
   yellow2,
 } from "./colors";
 
+const TIME_UNIT = 1000 * 60;
+
 const CLOCK_SIZE = 100;
 const FONT_SIZE = 5;
 const tau = Math.PI * 2;
@@ -40,7 +42,9 @@ const boxShadowFromAngle = (angle: number): string => {
   return `drop-shadow(${x}px ${y}px ${r}px rgba(0, 0, 0, 0.4))`;
 };
 
-const pieSliceBreakpoints = [1, 2, 3, 4, 5, 10, 15, 20].map((n) => n * 1000);
+const pieSliceBreakpoints = [1, 2, 3, 4, 5, 10, 15, 20].map(
+  (n) => n * TIME_UNIT
+);
 const pieSlicesData = pieSliceBreakpoints.map((n, i) =>
   i === 0 ? [0, n] : [pieSliceBreakpoints[i - 1], n]
 );
@@ -133,7 +137,7 @@ export const Clock: React.FC<{
       );
 
     // draw numbers on the face
-    const maxMinutes = maxTime / 1000;
+    const maxMinutes = maxTime / TIME_UNIT;
     const minutes = d3.range(maxMinutes);
     const anglePerMinute = tau / maxMinutes;
     const minutePositions = minutes.map((m) =>
@@ -165,7 +169,7 @@ export const Clock: React.FC<{
       .attr("x", (_, i) => minutePositions[i][0])
       .attr("y", (_, i) => minutePositions[i][1])
       .on("click", (_, d) => {
-        onDrag(d * 1000);
+        onDrag(d * TIME_UNIT);
         onRelease();
       });
 
